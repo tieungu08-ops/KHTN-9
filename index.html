@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ai Là Triệu Phú - Vật Lý</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: radial-gradient(circle, #0a1a3a 0%, #02050a 100%);
+            color: white;
+            height: 100vh;
+            overflow: hidden;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .hex-btn {
+            position: relative;
+            background: linear-gradient(180deg, #1e3a8a 0%, #000 100%);
+            border: 1px solid #3b82f6;
+            clip-path: polygon(5% 0%, 95% 0%, 100% 50%, 95% 100%, 5% 100%, 0% 50%);
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .hex-btn:hover { border-color: #fbbf24; transform: scale(1.01); }
+        .hex-btn.selected { background: linear-gradient(180deg, #d97706 0%, #7c2d12 100%); border-color: white; }
+        
+        .hex-btn.correct-blink {
+            animation: blink-green 0.4s step-end infinite;
+            border-color: white;
+        }
+
+        .hex-btn.wrong { background: linear-gradient(180deg, #dc2626 0%, #7f1d1d 100%); border-color: white; }
+
+        @keyframes blink-green {
+            0%, 100% { background: linear-gradient(180deg, #16a34a 0%, #064e3b 100%); }
+            50% { background: #fff; color: #000; }
+        }
+
+        .money-item { padding: 2px 10px; font-size: 0.8rem; color: #fbbf24; border-bottom: 1px solid rgba(59, 130, 246, 0.1); }
+        .money-item.active { background: linear-gradient(90deg, #fbbf24 0%, transparent 100%); color: black; font-weight: bold; }
+        .money-item.milestone { color: white; font-weight: bold; }
+        
+        .money-item.blink-active { animation: blink-money 0.4s step-end infinite; }
+        @keyframes blink-money {
+            0%, 100% { background: #16a34a; color: white; }
+            50% { background: transparent; color: #16a34a; }
+        }
+
+        .lifeline-btn {
+            width: 44px; height: 36px; background: #1e3a8a; border: 1px solid #3b82f6;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: 0.3s; font-size: 0.9rem;
+        }
+        .lifeline-btn.used { opacity: 0.3; cursor: not-allowed; text-decoration: line-through; filter: grayscale(1); }
+
+        .modal { background: rgba(0, 0, 0, 0.96); backdrop-filter: blur(10px); }
+
+        .input-field {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid #3b82f6;
+            padding: 10px 15px;
+            border-radius: 8px;
+            color: white;
+            outline: none;
+            width: 280px;
+            text-align: center;
+        }
+        
+        .pulse-btn { animation: pulse-animation 2s infinite; }
+        @keyframes pulse-animation {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.5); }
+            70% { transform: scale(1.03); box-shadow: 0 0 0 10px rgba(251, 191, 36, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); }
+        }
+
+        #audio-overlay {
+            background: rgba(0,0,0,0.9);
+            transition: opacity 0.5s;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Overlay để người chơi kích hoạt trò chơi và âm thanh -->
+    <div id="audio-overlay" class="fixed inset-0 z-[100] flex flex-col items-center justify-center text-center p-6">
+        <div class="mb-6">
+            <svg class="w-24 h-24 text-yellow-500 drop-shadow-[0_0_20px_rgba(251,191,36,0.6)]" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10 2a1 1 0 011 1v1.323l3.954 1.582 1.599-.8a1 1 0 01.894 1.79l-1.233.616 1.738 5.42a1 1 0 01-.285 1.05l-3.277 3.277a1 1 0 01-1.414 0l-3.277-3.277a1 1 0 01-.285-1.05l1.738-5.42-1.233-.616a1 1 0 01.894-1.79l1.599.8L9 4.323V3a1 1 0 011-1zM5 8.5V10h10V8.5L10 6.5 5 8.5z"/>
+            </svg>
+        </div>
+        <h2 class="text-3xl font-black text-white mb-10 tracking-widest uppercase italic">CHÀO MỪNG BẠN ĐẾN VỚI GHẾ NÓNG!</h2>
+        <button onclick="initIntroMusic()" class="pulse-btn px-16 py-5 bg-yellow-500 text-black font-black text-2xl rounded-full transition-transform active:scale-95 shadow-2xl">
+            VÀO TRÒ CHƠI
+        </button>
+    </div>
+
+    <!-- Màn hình khởi đầu -->
+    <div id="start-screen" class="fixed inset-0 flex flex-col items-center justify-center z-50 bg-slate-900 overflow-y-auto">
+        <div class="mb-4">
+            <svg class="w-20 h-20 text-yellow-500 drop-shadow-[0_0_10px_rgba(251,191,36,0.4)]" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10 2a1 1 0 011 1v1.323l3.954 1.582 1.599-.8a1 1 0 01.894 1.79l-1.233.616 1.738 5.42a1 1 0 01-.285 1.05l-3.277 3.277a1 1 0 01-1.414 0l-3.277-3.277a1 1 0 01-.285-1.05l1.738-5.42-1.233-.616a1 1 0 01.894-1.79l1.599.8L9 4.323V3a1 1 0 011-1zM5 8.5V10h10V8.5L10 6.5 5 8.5z"/>
+            </svg>
+        </div>
+        <h1 class="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-blue-400 tracking-tighter italic mb-2">AI LÀ TRIỆU PHÚ</h1>
+        <div class="mb-8 px-6 py-2 bg-blue-900/40 border border-blue-400 rounded-lg">
+            <h2 class="text-sm font-bold text-yellow-400 uppercase tracking-widest text-center">CHỦ ĐỀ: MẠCH ĐIỆN NỐI TIẾP & SONG SONG</h2>
+        </div>
+        <div class="flex flex-col gap-3 mb-8 items-center">
+            <input type="text" id="player-name" placeholder="Họ và tên..." class="input-field">
+            <input type="text" id="player-class" placeholder="Lớp..." class="input-field">
+        </div>
+        <button onclick="startGame()" class="pulse-btn px-16 py-4 bg-yellow-500 hover:bg-yellow-600 text-black font-black text-2xl rounded-full transition-all transform active:scale-95 mb-6 shadow-xl">
+            BẮT ĐẦU CHƠI
+        </button>
+        <div class="text-blue-300 hover:text-yellow-400 cursor-pointer transition underline decoration-1 underline-offset-4 text-sm font-bold uppercase tracking-wide" onclick="showRules()">
+            HƯỚNG DẪN & LUẬT CHƠI
+        </div>
+    </div>
+
+    <!-- Giao diện chính -->
+    <div id="main-game" class="hidden flex flex-col md:flex-row h-full">
+        <div class="flex-1 flex flex-col p-4 md:p-6">
+            <div class="flex justify-between items-center mb-4">
+                <div class="flex gap-3">
+                    <div id="btn-5050" onclick="use5050()" class="lifeline-btn" title="50/50">50/50</div>
+                    <div id="btn-phone" onclick="usePhone()" class="lifeline-btn" title="Nhà Giả Kim">⚗️</div>
+                    <div id="btn-audience" onclick="useAudience()" class="lifeline-btn" title="Khán Giả">👥</div>
+                </div>
+                <div class="text-right">
+                    <div id="user-info-display" class="text-xs font-bold text-blue-300 mb-1"></div>
+                    <div id="current-question-num" class="text-2xl font-black text-yellow-500">1/15</div>
+                </div>
+            </div>
+
+            <div class="flex-1 flex flex-col justify-center items-center gap-6">
+                <div id="question-box" class="w-full max-w-3xl hex-btn p-6 text-center text-lg md:text-xl font-bold min-h-[120px] flex items-center justify-center border border-blue-400">
+                    Đang chuẩn bị câu hỏi...
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl">
+                    <div id="opt-A" onclick="checkAnswer('A')" class="hex-btn p-4 flex items-center text-sm md:text-base"><span class="text-yellow-500 font-bold mr-3">A:</span> <span class="answer-text"></span></div>
+                    <div id="opt-B" onclick="checkAnswer('B')" class="hex-btn p-4 flex items-center text-sm md:text-base"><span class="text-yellow-500 font-bold mr-3">B:</span> <span class="answer-text"></span></div>
+                    <div id="opt-C" onclick="checkAnswer('C')" class="hex-btn p-4 flex items-center text-sm md:text-base"><span class="text-yellow-500 font-bold mr-3">C:</span> <span class="answer-text"></span></div>
+                    <div id="opt-D" onclick="checkAnswer('D')" class="hex-btn p-4 flex items-center text-sm md:text-base"><span class="text-yellow-500 font-bold mr-3">D:</span> <span class="answer-text"></span></div>
+                </div>
+
+                <button id="stop-btn" onclick="stopGameManual()" class="hidden mt-4 px-6 py-2 bg-red-600/30 border border-red-500 hover:bg-red-600 text-white rounded-lg text-sm transition-all font-bold">
+                    DỪNG CUỘC CHƠI (BẢO TOÀN THƯỞNG)
+                </button>
+            </div>
+        </div>
+
+        <div class="w-full md:w-56 bg-black/40 p-4 border-l border-blue-900/50 hidden md:block overflow-y-auto">
+            <h2 class="text-center font-black text-xs mb-4 text-blue-400 tracking-widest uppercase border-b border-blue-900 pb-1">Bảng Tiền Thưởng</h2>
+            <div id="money-ladder" class="flex flex-col-reverse gap-0.5"></div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="game-modal" class="fixed inset-0 modal hidden flex items-center justify-center z-[110] p-4">
+        <div class="bg-blue-900 border-2 border-yellow-500 p-8 rounded-xl max-w-lg w-full text-center shadow-2xl">
+            <h2 id="modal-title" class="text-2xl font-black mb-4 text-yellow-400 uppercase italic"></h2>
+            <div id="modal-content" class="mb-6 text-white text-base leading-relaxed"></div>
+            <button id="modal-btn" class="px-10 py-3 bg-yellow-500 hover:bg-yellow-600 text-black font-black rounded-lg uppercase transition-all"></button>
+        </div>
+    </div>
+
+    <div id="explain-modal" class="fixed inset-0 modal hidden flex items-center justify-center z-[120] p-4">
+        <div class="bg-slate-900 border-2 border-blue-500 p-8 rounded-2xl max-w-xl w-full shadow-2xl">
+            <div id="explain-status" class="text-3xl font-black mb-2 italic"></div>
+            <div id="explain-correct-ans" class="text-yellow-400 font-bold mb-4 text-lg"></div>
+            <div class="border-t border-blue-800 pt-4 mb-6">
+                <h4 class="text-blue-300 font-bold uppercase text-xs mb-2">Thông tin từ hệ thống:</h4>
+                <p id="explain-text" class="text-slate-200 text-sm leading-relaxed italic"></p>
+            </div>
+            <button id="explain-next-btn" class="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all uppercase">Tiếp tục câu tiếp theo</button>
+        </div>
+    </div>
+
+    <script>
+        const QUESTIONS_DB = [
+            { q: "Đơn vị đo cường độ dòng điện là gì?", a: "Vôn (V)", b: "Ampe (A)", c: "Ôm (Ω)", d: "Oát (W)", correct: "B", 
+              exp: "Ampe (A) là đơn vị đo cường độ dòng điện chuẩn SI.", 
+              alchemy: "Kiến thức cơ bản: I (Cường độ dòng điện) có đơn vị đo là Ampe." },
+            { q: "Trong đoạn mạch nối tiếp, cường độ dòng điện có đặc điểm gì?", a: "I = I1 + I2", b: "I = I1 = I2", c: "I = I1 / I2", d: "I = I1 - I2", correct: "B", 
+              exp: "Mạch nối tiếp có dòng điện chạy trên một nhánh duy nhất nên I bằng nhau tại mọi điểm.",
+              alchemy: "Đặc điểm mạch nối tiếp: I toàn mạch bằng I qua các điện trở thành phần." },
+            { q: "Công thức của định luật Ôm là gì?", a: "I = U / R", b: "I = R / U", c: "I = U.R", d: "U = I / R", correct: "A", 
+              exp: "I = U/R thể hiện mối liên hệ giữa I, U và R.",
+              alchemy: "Georg Ohm đã đưa ra hệ thức tỉ lệ nghịch giữa I và R." },
+            { q: "Trong mạch song song, hiệu điện thế có đặc điểm gì?", a: "U = U1 + U2", b: "U = U1 = U2", c: "U = U1 - U2", d: "U = U1 . U2", correct: "B", 
+              exp: "Các nhánh song song nối chung điểm đầu và cuối nên có hiệu điện thế như nhau.",
+              alchemy: "Đặc điểm mạch song song: Hiệu điện thế các nhánh bằng nhau." },
+            { q: "Nếu R1 = 10Ω và R2 = 20Ω mắc nối tiếp, điện trở tương đương là bao nhiêu?", a: "10Ω", b: "20Ω", c: "30Ω", d: "200Ω", correct: "C", 
+              exp: "Rtđ nối tiếp = Tổng các điện trở thành phần: 10 + 20 = 30Ω.",
+              alchemy: "Rtđ = R1 + R2 + ... trong mạch nối tiếp." },
+            { q: "Một bóng đèn có điện trở 12Ω, dòng điện qua đèn là 0.5A. Hiệu điện thế là?", a: "24V", b: "12V", c: "6V", d: "3V", correct: "C", 
+              exp: "U = I * R = 0.5 * 12 = 6V.", alchemy: "Áp dụng định luật Ôm: U = I.R." },
+            { q: "Hai điện trở R1 = R2 = 10Ω mắc song song. Điện trở tương đương là?", a: "20Ω", b: "10Ω", c: "5Ω", d: "0Ω", correct: "C", 
+              exp: "1/Rtđ = 1/R1 + 1/R2 => Rtđ = 5Ω.", alchemy: "Rtđ = R/n khi các điện trở song song bằng nhau." },
+            { q: "Trong đoạn mạch nối tiếp, hiệu điện thế toàn mạch bằng gì?", a: "U = U1 = U2", b: "U = U1 + U2", c: "U = U1 - U2", d: "U = U1 . U2", correct: "B", 
+              exp: "Hiệu điện thế toàn mạch bằng tổng hiệu điện thế trên từng điện trở.", alchemy: "Công thức mạch nối tiếp: U = U1 + U2." },
+            { q: "Cường độ dòng điện chạy qua một dây dẫn tăng lên 3 lần khi?", a: "U tăng 3 lần", b: "U giảm 3 lần", c: "R tăng 3 lần", d: "R giảm 6 lần", correct: "A", 
+              exp: "I tỉ lệ thuận với U theo định luật Ôm.", alchemy: "Mối quan hệ trực tiếp giữa I và U." },
+            { q: "Một mạch điện gồm 3 điện trở 6Ω mắc song song. Điện trở tương đương là?", a: "18Ω", b: "6Ω", c: "3Ω", d: "2Ω", correct: "D", 
+              exp: "Rtđ = 6 / 3 = 2Ω.", alchemy: "Dùng công thức cho mạch song song giống nhau." },
+            { q: "Cho mạch (R1 // R2) nối tiếp R3. Biết R1=10Ω, R2=10Ω, R3=5Ω. Điện trở toàn mạch là?", a: "25Ω", b: "15Ω", c: "10Ω", d: "5Ω", correct: "C", 
+              exp: "Rtđ = (10/2) + 5 = 10Ω.", alchemy: "Tính Rtđ song song trước rồi cộng điện trở nối tiếp." },
+            { q: "Hiệu điện thế U=12V, mạch nối tiếp R1=2Ω, R2=4Ω. Cường độ dòng điện mạch chính là?", a: "6A", b: "3A", c: "2A", d: "0.5A", correct: "C", 
+              exp: "I = 12 / (2+4) = 2A.", alchemy: "I = U / Rtđ." },
+            { q: "Mạch song song R1=30Ω, R2=20Ω. Nếu dòng qua R1 là 0.2A thì dòng qua R2 là?", a: "0.2A", b: "0.3A", c: "0.4A", d: "0.6A", correct: "B", 
+              exp: "U = 0.2*30 = 6V. I2 = 6/20 = 0.3A.", alchemy: "I tỉ lệ nghịch với R trong mạch song song." },
+            { q: "Mạch [(R1 // R2) nt R3]. U=18V, R1=R2=6Ω, R3=6Ω. Hiệu điện thế trên R1 là?", a: "12V", b: "9V", c: "6V", d: "3V", correct: "C", 
+              exp: "Rtđ=9Ω, I=2A. U12 = I*R12 = 2*3 = 6V.", alchemy: "U nhánh bằng dòng chính nhân trở cụm song song." },
+            { q: "R1 nối tiếp R2 (U=24V, I=0.6A). R1 song song R2 (U=24V, I=2.5A). R1, R2 là?", a: "10Ω và 30Ω", b: "20Ω và 20Ω", c: "15Ω và 25Ω", d: "12Ω và 28Ω", correct: "A", 
+              exp: "Tổng R=40, Tích R=300. Giải hệ tìm 10 và 30.", alchemy: "Giải hệ phương trình từ các công thức nt và //." }
+        ];
+
+        const MONEY_LEVELS = ["200.000", "400.000", "600.000", "1.000.000", "2.000.000", "3.000.000", "6.000.000", "10.000.000", "14.000.000", "22.000.000", "30.000.000", "40.000.000", "60.000.000", "85.000.000", "150.000.000"];
+
+        const SOUND_URLS = {
+            intro: 'https://static.wikia.nocookie.net/ai-la-trieu-phu/images/b/b8/Intro_2021.mp3/revision/latest?cb=20210913061207&path-prefix=vi',
+            thinking: 'https://static.wikia.nocookie.net/ai-la-trieu-phu/images/b/b2/Gioi_thieu_6_ung_vien.mp3/revision/latest?cb=20250814042926&path-prefix=vi',
+            correct: 'https://static.wikia.nocookie.net/ai-la-trieu-phu/images/7/75/C6%2C_11_dung.ogg/revision/latest?cb=20180508041941&path-prefix=vi',
+            milestone_win: 'https://static.wikia.nocookie.net/ai-la-trieu-phu/images/3/30/C5---Dung.ogg/revision/latest?cb=20180508041940&path-prefix=vi',
+            wrong: 'https://static.wikia.nocookie.net/ai-la-trieu-phu/images/3/3e/C6%2C_11_sai.ogg/revision/latest?cb=20180508041938&path-prefix=vi'
+        };
+
+        const SOUNDS = {};
+        Object.keys(SOUND_URLS).forEach(key => {
+            SOUNDS[key] = new Audio(SOUND_URLS[key]);
+            SOUNDS[key].onerror = () => console.warn(`Audio error: ${key}`);
+        });
+
+        let currentStep = 0;
+        let isAnswering = false;
+        let usedLifelines = { '5050': false, 'phone': false, 'audience': false };
+        let playerName = "";
+        let playerClass = "";
+
+        function initIntroMusic() {
+            document.getElementById('audio-overlay').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('audio-overlay').classList.add('hidden');
+            }, 500);
+            playSound('intro');
+        }
+
+        function playSound(name) {
+            try {
+                if (name === 'thinking') {
+                    SOUNDS[name].loop = true;
+                    SOUNDS[name].volume = 0.4;
+                }
+                SOUNDS[name].currentTime = 0;
+                SOUNDS[name].play().catch(() => {});
+            } catch(e) {}
+        }
+
+        function stopSound(name) {
+            try {
+                SOUNDS[name].pause();
+                SOUNDS[name].currentTime = 0;
+            } catch(e) {}
+        }
+
+        function stopAllSounds() {
+            Object.values(SOUNDS).forEach(s => { s.pause(); s.currentTime = 0; });
+        }
+
+        function initLadder() {
+            const ladder = document.getElementById('money-ladder');
+            ladder.innerHTML = '';
+            MONEY_LEVELS.forEach((val, i) => {
+                const div = document.createElement('div');
+                div.className = `money-item flex justify-between ${ (i+1) % 5 === 0 ? 'milestone' : '' }`;
+                div.id = `money-level-${i}`;
+                div.innerHTML = `<span>${i+1}</span> <span class="text-right">${val}</span>`;
+                ladder.appendChild(div);
+            });
+        }
+
+        function startGame() {
+            playerName = document.getElementById('player-name').value.trim();
+            playerClass = document.getElementById('player-class').value.trim();
+            if (!playerName || !playerClass) {
+                showModal("THÔNG BÁO", "Hãy nhập tên và lớp để bắt đầu chương trình!", "Đồng ý");
+                return;
+            }
+            stopSound('intro');
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('main-game').classList.remove('hidden');
+            document.getElementById('user-info-display').innerText = `${playerName} - ${playerClass}`;
+            currentStep = 0;
+            usedLifelines = { '5050': false, 'phone': false, 'audience': false };
+            resetLifelineUI();
+            initLadder();
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            isAnswering = false;
+            stopSound('correct');
+            stopSound('milestone_win');
+            playSound('thinking'); 
+
+            const qData = QUESTIONS_DB[currentStep];
+            document.getElementById('current-question-num').innerText = `${currentStep + 1}/15`;
+            document.getElementById('question-box').innerText = qData.q;
+            
+            ['A', 'B', 'C', 'D'].forEach(opt => {
+                const btn = document.getElementById(`opt-${opt}`);
+                btn.className = 'hex-btn p-4 flex items-center text-sm md:text-base';
+                btn.querySelector('.answer-text').innerText = qData[opt.toLowerCase()];
+                btn.style.visibility = 'visible';
+            });
+
+            document.querySelectorAll('.money-item').forEach(el => el.classList.remove('active', 'blink-active'));
+            document.getElementById(`money-level-${currentStep}`).classList.add('active');
+
+            if (currentStep >= 10) {
+                document.getElementById('stop-btn').classList.remove('hidden');
+            } else {
+                document.getElementById('stop-btn').classList.add('hidden');
+            }
+        }
+
+        function checkAnswer(selected) {
+            if (isAnswering) return;
+            isAnswering = true;
+            stopSound('thinking'); 
+
+            const correct = QUESTIONS_DB[currentStep].correct;
+            const selectedBtn = document.getElementById(`opt-${selected}`);
+            const correctBtn = document.getElementById(`opt-${correct}`);
+            const ladderItem = document.getElementById(`money-level-${currentStep}`);
+
+            selectedBtn.classList.add('selected');
+
+            setTimeout(() => {
+                if (selected === correct) {
+                    if ((currentStep + 1) % 5 === 0) {
+                        playSound('milestone_win');
+                    } else {
+                        playSound('correct');
+                    }
+
+                    selectedBtn.classList.remove('selected');
+                    selectedBtn.classList.add('correct-blink');
+                    ladderItem.classList.add('blink-active');
+                    
+                    setTimeout(() => {
+                        showExplanation(true);
+                    }, 3000);
+                } else {
+                    playSound('wrong');
+                    selectedBtn.classList.remove('selected');
+                    selectedBtn.classList.add('wrong');
+                    correctBtn.classList.add('correct-blink');
+                    
+                    setTimeout(() => {
+                        showExplanation(false);
+                    }, 3000);
+                }
+            }, 2000);
+        }
+
+        function showExplanation(isCorrect) {
+            const modal = document.getElementById('explain-modal');
+            const status = document.getElementById('explain-status');
+            const correctAns = document.getElementById('explain-correct-ans');
+            const expText = document.getElementById('explain-text');
+            const nextBtn = document.getElementById('explain-next-btn');
+            const qData = QUESTIONS_DB[currentStep];
+
+            if (isCorrect) {
+                status.innerText = "CHÍNH XÁC!";
+                status.className = "text-3xl font-black mb-2 italic text-green-500";
+            } else {
+                status.innerText = "CHƯA CHÍNH XÁC...";
+                status.className = "text-3xl font-black mb-2 italic text-red-500";
+            }
+
+            correctAns.innerText = `Đáp án đúng: ${qData.correct}. ${qData[qData.correct.toLowerCase()]}`;
+            expText.innerText = qData.exp;
+
+            modal.classList.remove('hidden');
+
+            nextBtn.onclick = () => {
+                modal.classList.add('hidden');
+                if (isCorrect) {
+                    if (currentStep === 14) {
+                        showGameOver("XUẤT SẮC!", "Chúc mừng bạn đã chinh phục 15 câu hỏi của chương trình!", "Hoàn tất");
+                    } else {
+                        currentStep++;
+                        loadQuestion();
+                    }
+                } else {
+                    let winMoney = currentStep >= 10 ? MONEY_LEVELS[9] : (currentStep >= 5 ? MONEY_LEVELS[4] : "0");
+                    showGameOver("DỪNG CUỘC CHƠI", `Trò chơi kết thúc tại câu ${currentStep + 1}. Mức thưởng đạt được: ${winMoney}đ`, "Chơi lại");
+                }
+            };
+        }
+
+        function use5050() {
+            if (usedLifelines['5050'] || isAnswering) return;
+            usedLifelines['5050'] = true;
+            document.getElementById('btn-5050').classList.add('used');
+            const correct = QUESTIONS_DB[currentStep].correct;
+            let options = ['A', 'B', 'C', 'D'].filter(o => o !== correct);
+            for (let i = 0; i < 2; i++) {
+                const randIdx = Math.floor(Math.random() * options.length);
+                document.getElementById(`opt-${options.splice(randIdx, 1)[0]}`).style.visibility = 'hidden';
+            }
+        }
+
+        function usePhone() {
+            if (usedLifelines['phone'] || isAnswering) return;
+            usedLifelines['phone'] = true;
+            document.getElementById('btn-phone').classList.add('used');
+            const qData = QUESTIONS_DB[currentStep];
+            showModal("NHÀ GIẢ KIM", qData.alchemy + `<br><br><b class="text-yellow-400">Lời khuyên: Bạn nên chọn đáp án ${qData.correct}.</b>`, "Cảm ơn");
+        }
+
+        function useAudience() {
+            if (usedLifelines['audience'] || isAnswering) return;
+            usedLifelines['audience'] = true;
+            document.getElementById('btn-audience').classList.add('used');
+            const correct = QUESTIONS_DB[currentStep].correct;
+            let res = { A: 5, B: 5, C: 5, D: 5 };
+            res[correct] = 70 + Math.floor(Math.random() * 15);
+            showModal("KHÁN GIẢ", `Kết quả bình chọn: A:${res.A}% | B:${res.B}% | C:${res.C}% | D:${res.D}%`, "Đóng");
+        }
+
+        function stopGameManual() {
+            if (isAnswering) return;
+            const winMoney = MONEY_LEVELS[currentStep - 1];
+            showGameOver("DỪNG CUỘC CHƠI", `Bạn quyết định dừng cuộc chơi để bảo toàn mức thưởng hiện tại: ${winMoney}đ.`, "Chơi lại");
+        }
+
+        function resetLifelineUI() {
+            ['5050', 'phone', 'audience'].forEach(id => document.getElementById(`btn-${id}`).classList.remove('used'));
+        }
+
+        function showRules() {
+            const rules = `
+                <ul class="text-left space-y-3 text-sm">
+                    <li>- Hãy cố gắng trả lời đúng 15 câu hỏi của chương trình.</li>
+                    <li>- Các mốc an toàn cực kỳ quan trọng là câu 5 và câu 10.</li>
+                    <li>- Bạn có 3 quyền trợ giúp: 50/50, Hỏi Nhà giả kim và Hỏi ý kiến khán giả.</li>
+                    <li>- Từ câu 11, bạn có quyền "Dừng cuộc chơi" để bảo toàn số tiền thưởng đã đạt được ở câu trước.</li>
+                </ul>
+            `;
+            showModal("HƯỚNG DẪN CHƠI", rules, "Bắt đầu");
+        }
+
+        function showModal(title, content, btnText, callback) {
+            const modal = document.getElementById('game-modal');
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-content').innerHTML = content;
+            const btn = document.getElementById('modal-btn');
+            btn.innerText = btnText;
+            modal.classList.remove('hidden');
+            btn.onclick = () => { modal.classList.add('hidden'); if (callback) callback(); };
+        }
+
+        function showGameOver(title, content, btnText) {
+            stopAllSounds();
+            showModal(title, content, btnText, () => location.reload());
+        }
+
+        window.onload = () => { initLadder(); };
+    </script>
+</body>
+</html>
